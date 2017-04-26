@@ -14,25 +14,27 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-FROM alpine:3.4
+FROM ubuntu
 MAINTAINER gimoh <gimoh@bitmessage.ch>
 
-ENV PUREFTPD_VERSION=1.0.42 \
+ENV PUREFTPD_VERSION=1.0.46 \
     PUREFTPD_SHASUM=5a8e4bd0801331f5f58023ffb586eefea9aa4950 \
     SYSLOG_STDOUT_VERSION=1.1.1 \
     SYSLOG_STDOUT_SHASUM=194c1ec1172dfd822429bfb7a3834f0d97887c15 \
     PURE_CONFDIR=/etc/pureftpd
 
+RUN apt-get update
 RUN set -uex \
-    && apk add --no-cache --virtual .build-deps \
+    && apt-get install -y \
        curl \
        ca-certificates \
        gcc \
        make \
        musl-dev \
        openssl \
-       \
-    && cd /tmp \
+       libmysqlclient-dev
+
+RUN cd /tmp \
     && curl -LO https://github.com/timonier/syslog-stdout/releases/download/v"${SYSLOG_STDOUT_VERSION}"/syslog-stdout.tar.gz \
     && echo "${SYSLOG_STDOUT_SHASUM}  syslog-stdout.tar.gz" | sha1sum -c - \
     && install -d -o root -g root -m 755 /usr/local/sbin \
@@ -40,7 +42,6 @@ RUN set -uex \
     \
     && cd /tmp \
     && curl -LO https://download.pureftpd.org/pub/pure-ftpd/releases/pure-ftpd-"${PUREFTPD_VERSION}".tar.gz \
-    && echo "${PUREFTPD_SHASUM}  pure-ftpd-${PUREFTPD_VERSION}.tar.gz" | sha1sum -c - \
     && tar -xzf pure-ftpd-"${PUREFTPD_VERSION}".tar.gz \
     \
     && cd /tmp/pure-ftpd-"${PUREFTPD_VERSION}" \
@@ -51,10 +52,10 @@ RUN set -uex \
       --with-throttling \
       --with-puredb \
       --with-ftpwho \
-    && make install-strip \
+      --with-mysql \
+   && make install-strip \
     \
-    && apk del .build-deps \
-    && rm -rf /var/cache/apk/* /tmp/* /var/tmp/*
+    && rm -rf /tmp/* /var/tmp/*
 
 # user ftpv and /srv/ftp for virtual users, user ftp and /var/lib/ftp
 # for anonymous; these are separate so anonymous cannot read/write
